@@ -1,7 +1,7 @@
 
 	.global G_sha1_block
 
-	.cpu generic+fp+simd+crypto
+	.cpu generic+crypto
 
 # ---------------------------------
 // >>> IN
