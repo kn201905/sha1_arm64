@@ -51,10 +51,10 @@ _start:
 		adr		x1, L_1st_blk_to_hash
 		
 		// 512 bits ブロックをロード
-		ld1		{v20.16b}, [x1], 16
-		ld1		{v21.16b}, [x1], 16
-		ld1		{v22.16b}, [x1], 16
-		ld1		{v23.16b}, [x1], 16
+		ld1		{v20.16b}, [x1], #16
+		ld1		{v21.16b}, [x1], #16
+		ld1		{v22.16b}, [x1], #16
+		ld1		{v23.16b}, [x1]
 
 		// 取得した 512 bits ブロックをビッグエンディアンに並べ替える
 		rev32	v20.16b, v20.16b
@@ -84,14 +84,36 @@ _start:
 		bl		G_sha1_block
 
 		// ---------------------------------
+		// 作成されたハッシュ値を fd 1 へ出力
 		mov		x0, #1				// std out
 		bl		L_out_to_x0_hash_v0_s1
 
+		// 作成されたハッシュ値を fd 2 へ出力
 		bl		DBG_cout_LF
 		mov		x0, #2				// dbg out
 		bl		L_out_to_x0_hash_v0_s1
 		bl		DBG_cout_LF
-		bl		DBG_cout_LF
+		
+		// ---------------------------------
+		// ハッシュ値を base64 へエンコーディング
+		rev32	v0.16b, v0.16b
+		adr		x1, L_20bytes_to_base64
+		st1		{v0.4s}, [x1], #16		
+		
+		rev32	v1.8b, v1.8b
+		st1		{v1.2s}, [x1]
+
+		adr		x0, L_20bytes_to_base64
+		adr		x1, L_27letters_base64
+		bl		G_base64_20bytes
+		
+		// ---------------------------------
+		// 作成された base64 文字列（27文字）を fd 3 へ出力
+		mov		x0, #3
+		adr		x1, L_27letters_base64
+		mov		x2, #27
+		mov		x8, #sys_write
+		svc		#0
 		
 		// ---------------------------------
 		mov     x0, xzr			// exit code
@@ -168,6 +190,14 @@ L_1st_blk_to_hash:
 L_hash_val:
 	.ascii "xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx"
 
+	.align 4
+L_20bytes_to_base64:
+	.skip 24
+	
+	.align 4
+L_27letters_base64:
+	.skip 32
+	
 # ---------------------------------
 # サンプルコード
 /*
