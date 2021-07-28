@@ -1,7 +1,12 @@
 	.global DBG_cout_LF
+	
 	.global DBG_cout_32bit
 	.global DBG_cout_64bit
 	.global DBG_cout_128bit
+	
+	.global DBG_cout_mem32
+	.global DBG_cout_mem64
+	.global DBG_cout_mem128
 	
 	.global DBG_crt_ui64_to_x0
 
@@ -12,7 +17,7 @@ DBG_cout_LF:
 		stp		x0, x1, [sp, #-16]!
 		stp		x2, x8, [sp, #-16]!
 		
-		mov		x0, #1				// fd
+		mov		x0, #2				// dbg out
 		adr		x1, L_str_LF
 		mov		x2, #1				// 表示文字数
 		mov		x8, #sys_write
@@ -28,7 +33,7 @@ L_str_LF:
 	
 # ---------------------------------
 # スタックに push されている 32bit値を表示する
-# スタッククリア: この関数内で実行される
+# スタッククリアは、この関数内で実行される
 
 	.align 2
 DBG_cout_32bit:
@@ -43,7 +48,7 @@ DBG_cout_32bit:
 		adr		x1, L_str_8dig_for_cout
 		str		x0, [x1]
 		
-		mov		x0, #1				// fd
+		mov		x0, #2				// dbg out
 		mov		x2, #9				// 表示文字数
 		mov		x8, #sys_write
 		svc		#0
@@ -55,7 +60,7 @@ DBG_cout_32bit:
 
 # ---------------------------------
 # スタックに push されている 64bit値を表示する
-# スタッククリア: この関数内で実行される
+# スタッククリアは、この関数内で実行される
 
 DBG_cout_64bit:
 		stp		x0, x1, [sp, #-16]!
@@ -75,7 +80,7 @@ DBG_cout_64bit:
 		str		x0, [x8]
 		
 		// ---------------------
-		mov		x0, #1				// fd
+		mov		x0, #2				// dbg out
 		mov		x1, x8
 		mov		x2, #18				// 表示文字数
 		mov		x8, #sys_write
@@ -88,7 +93,7 @@ DBG_cout_64bit:
 
 # ---------------------------------
 # スタックに push されている 128bit値を表示する
-# スタッククリア: この関数内で実行される
+# スタッククリアは、この関数内で実行される
 
 DBG_cout_128bit:
 		stp		x0, x1, [sp, #-16]!
@@ -116,13 +121,123 @@ DBG_cout_128bit:
 		str		x0, [x8]
 		
 		// ---------------------
-		mov		x0, #1				// fd
+		mov		x0, #2				// dbg out
 		mov		x1, x8
 		mov		x2, #36				// 表示文字数
 		mov		x8, #sys_write
 		svc		#0
 		
 		ldp		x3, lr, [sp], #16
+		ldp		x2, x8, [sp], #16
+		ldp		x0, x1, [sp], #32	// スタッククリアも含む
+		ret
+		
+# ---------------------------------
+# スタックに push されている「アドレスから」32bit値を表示する
+# スタッククリアは、この関数内で実行される
+
+	.align 2
+DBG_cout_mem32:
+		stp		x0, x1, [sp, #-16]!
+		stp		x2, x8, [sp, #-16]!
+		stp		x3, lr, [sp, #-16]!
+		
+		mov		x1, #0x61 - 0x3a
+		ldr		x2, [sp, #48]		// x2 にアドレスを取り出す
+		ldr		w3, [x2]			// 32bit 値を取り出す
+		rev		w3, w3				// ビッグエンディアンに修正
+		bl		L_crt_ui64_to_x0
+		
+		adr		x1, L_str_8dig_for_cout
+		str		x0, [x1]
+		
+		mov		x0, #2				// dbg out
+		mov		x2, #9				// 表示文字数
+		mov		x8, #sys_write
+		svc		#0
+		
+		ldp		x3, lr, [sp], #16
+		ldp		x2, x8, [sp], #16
+		ldp		x0, x1, [sp], #32	// スタッククリアも含む
+		ret
+		
+# ---------------------------------
+# スタックに push されている「アドレスから」64bit値を表示する
+# スタッククリアは、この関数内で実行される
+
+DBG_cout_mem64:
+		stp		x0, x1, [sp, #-16]!
+		stp		x2, x8, [sp, #-16]!
+		stp		x3, lr, [sp, #-16]!
+		
+		// ---------------------
+		mov		x1, #0x61 - 0x3a
+		ldr		x2, [sp, #48]		// x2 にアドレスを取り出す
+		ldr		x3, [x2]			// 64bit 値を取り出す
+		rev		x3, x3				// ビッグエンディアンに修正
+		bl		L_crt_ui64_to_x0
+				
+		adr		x8, L_str_8dig_for_cout
+		str		x0, [x8, #9]
+		
+		lsr		x3, x3, #16
+		bl		L_crt_ui64_to_x0
+		str		x0, [x8]
+		
+		// ---------------------
+		mov		x0, #2				// dbg out
+		mov		x1, x8
+		mov		x2, #18				// 表示文字数
+		mov		x8, #sys_write
+		svc		#0
+		
+		ldp		x3, lr, [sp], #16
+		ldp		x2, x8, [sp], #16
+		ldp		x0, x1, [sp], #32	// スタッククリアも含む
+		ret
+		
+# ---------------------------------
+# スタックに push されている「アドレスから」128bit値を表示する
+# スタッククリアは、この関数内で実行される
+
+DBG_cout_mem128:
+		stp		x0, x1, [sp, #-16]!
+		stp		x2, x8, [sp, #-16]!
+		stp		x3, x4, [sp, #-16]!
+		str		lr, [sp, #-16]!
+		
+		// ---------------------
+		mov		x1, #0x61 - 0x3a
+		ldr		x4, [sp, #64]		// x4 にアドレスを取り出す
+		ldr		x3, [x4]			// 64bit 値を取り出す
+		rev		x3, x3				// ビッグエンディアンに修正
+		bl		L_crt_ui64_to_x0
+		
+		adr		x8, L_str_8dig_for_cout
+		str		x0, [x8, #9]
+		
+		lsr		x3, x3, #16
+		bl		L_crt_ui64_to_x0
+		str		x0, [x8]
+
+		ldr		x3, [x4, #8]
+		rev		x3, x3
+		bl		L_crt_ui64_to_x0
+		str		x0, [x8, #27]
+
+		lsr		x3, x3, #16
+		bl		L_crt_ui64_to_x0
+		str		x0, [x8, #18]
+		
+		// ---------------------
+		mov		x0, #2				// dbg out
+		mov		x1, x8
+		mov		x2, #36				// 表示文字数
+		mov		x8, #sys_write
+		svc		#0
+		
+		ldr		lr, [sp], #16
+		ldp		x3, x4, [sp], #16
 		ldp		x2, x8, [sp], #16
 		ldp		x0, x1, [sp], #32	// スタッククリアも含む
 		ret
